@@ -1,0 +1,155 @@
+---
+title: "Course Project 1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tasks
+1. Loading and preprocessing the data
+2. Explain what is mean total number of steps taken per day
+3. Find out What is the average daily activity pattern
+4. Imputing missing values
+5. Find out the differences in activity patterns between weekdays and weekends
+
+## Loading and preprocessing the data 
+In the first part, I am going to load the ggplot package and download the data
+
+```{r ggplot2}
+#Load ggplot package  further use 
+library(ggplot2)
+```
+Then extract the data 
+```{r download the data}
+setwd("C:/Users/PakHang/Desktop/Coursera JHU/Chapter 5/Week 2/data")
+activity <- read.csv("activity.csv")
+#See the variable types of the data 
+str(activity)
+
+```
+
+Find out the missing data and convert the date variable 
+```{r adjust the data}
+#Classified the completed and incompleted data 
+activity$completeness <- complete.cases(activity)
+#Subset the complete and missing cases 
+completedata <- subset(activity, activity$completeness == TRUE)
+missingdata <- subset(activity, activity$completeness == FALSE)
+#Change date to Date type 
+completedata$date <- as.POSIXct(completedata$date)
+```
+## Explain what is mean total number of steps taken per day 
+
+Make a histogram of the total number of steps taken each day
+```{r adjusting}
+#Form the table to prepare for the histogram
+stepsperdate<- tapply(completedata$steps, completedata$date, sum)
+```
+```{r histogram, echo=TRUE}
+# Plot the Histogram
+hist(stepsperdate, xlab = "Steps", main = "Number of steps each day")
+```
+Compute the mean and median of the total number of steps taken per day
+```{r mean and median}
+#Compute the mean and the median 
+mean(stepsperdate, na.rm=TRUE)
+median(stepsperdate, na.rm=TRUE)
+```
+
+## Find out What is the average daily activity pattern 
+
+Time series plot of the average number of steps taken
+```{r aggregate, echo=TRUE}
+# Use aggregate function to summarize data by group
+averagesteps <- aggregate(steps ~ interval, completedata, mean)
+```
+```{r ggplot, echo=TRUE}
+#Plot the graph
+qplot(x=interval, y=steps,  
+data =averagesteps, 
+geom="line", 
+xlab = "Interval (per 5 mins)"
+,ylab = "Average steps number", 
+main="Average steps every day")
+```
+
+Compute The 5-minute interval that, on average, contains the maximum number of steps
+```{r interval, echo=TRUE}
+# Compute with which.max function
+averagesteps$interval[which.max (averagesteps$steps)]
+```
+That means the highest step counts is in 8:35 am
+
+## Imputing missing values
+
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r missingvalues, echo=TRUE}
+nrow(missingdata)
+```
+There are 2304 observations that are incompleted
+
+Code to describe and show a strategy for imputing missing data
+```{r combine missingdata, echo=TRUE}
+# Use a for loop to add back all the missing value, by refering to average
+for (x in 1:nrow(missingdata)) {
+   if (is.na(missingdata$steps[x])) {
+      missingvalue <- averagesteps$steps [which (missingdata$interval[x] == averagesteps$interval) ]
+      missingdata$steps[x]<- missingvalue
+   }
+}
+#Change the date variable
+missingdata$date <- as.POSIXct(missingdata$date)
+```
+
+Create a new dataset that is equal to the original dataset but with the missing data filled in
+```{r combine dataframe, echo=TRUE}
+#Combine the dataframes
+activitydata <- rbind(completedata, missingdata)
+```
+
+Histogram of the total number of steps taken each day after missing values are imputed
+```{r form Histogram, echo=TRUE}
+#Form the table before plotting 
+stepsperdateall<- tapply(activitydata$steps, activitydata$date, sum)
+#Plot the graph with ggplot
+hist(stepsperdateall, xlab = "Steps", main = "Steps every day")
+```
+
+## Find out the differences in activity patterns between weekdays and weekends
+
+Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r form Weekdays and Weekends, echo=TRUE}
+#Make new column weekdays and record the weekday from date variable
+Sys.setlocale("LC_TIME", "English")
+activitydata$day <- weekdays(activitydata$date)
+
+#Add new columns Daytype
+activitydata[,"Daytype"] <- NA
+
+#Classify weekday and weekends 
+activitydata$Daytype = "Weekend"
+activitydata$Daytype[!(activitydata$day %in% c("Saturday", "Sunday"))] <- "Weekday"
+
+#Subset the data again by Daytype 
+weekdaydata <- subset (activitydata, activitydata$Daytype=="Weekday")
+weekenddata <- subset (activitydata, activitydata$Daytype=="Weekend")
+averagewkdaysteps <- aggregate(steps ~ interval, weekdaydata, mean)
+averagewkendsteps <- aggregate(steps ~ interval, weekenddata, mean)
+
+```
+
+Plot the graph
+```{r plotthegraph, echo=TRUE}
+#Set up the parameter
+par(mfrow = c(2,1))
+#Plot for weekdays
+plot(averagewkdaysteps , type = "l", main = "Steps in weekdays", xlab = "Interval (per 5 mins)"
+,ylab = "Average steps number")
+#Plot for weekends
+plot(averagewkendsteps , type = "l", main = "Steps in weekend", xlab = "Interval (per 5 mins)"
+,ylab = "Average steps number")
+```
+
